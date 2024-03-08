@@ -1,0 +1,58 @@
+# Preparation
+mkdir ngs_practical_1
+cd ngs_practical_1
+mkdir data
+cd data
+
+# Setting shell variable
+setenv st_path /d/projects/u/your_login_name/ngs_practical_1/
+
+# Downloading raw reads
+cd $st_path/data/
+wget ftp.sra.ebi.ac.uk/vol1/fastq/SRR292/SRR292770/SRR292770_1.fastq.gz
+
+# Quality control of raw FASTQ files
+module load fastqc/v0.11.9
+fastqc SRR292770_1.fastq.gz
+
+# Removing adapters, filtering on quality
+cd ..
+mkdir fastp
+cd fastp
+/d/in19/u/ubcg71a/s/fastp/fastp \
+         -i  ../data/SRR292770_1.fastq.gz  \
+         -o SRR292770_1_trimmed.fastq.gz \
+         -l 30 \
+         -e 20 \
+         -h SRR292770_fastp.html -j SRR292770_fastp.json \
+         --overrepresentation_analysis
+
+# Automating repetitive tasks with bash scripts
+chmod a+x iterate_fastq.sh
+./iterate_fastq.sh
+
+# Summarising statistics with MultiQC
+module load python/v3
+multiqc . -f
+
+# Aligning reads to a reference genome with Bowtie2
+module load bowtie/v2-2.4.2
+cd $st_path
+mkdir mapping
+cd mapping
+mkdir end_to_end
+cd end_to_end
+bowtie2 --end-to-end \
+        -x $st_path/genomes/Ecoli_O157_H7/ncbi_dataset/data/GCF_000008865.2/ASM886v2  \
+        -1 $st_path/fastp/SRR292770_1_trimmed.fastq.gz \
+        -2 $st_path/fastp/SRR292770_2_trimmed.fastq.gz \
+        -S SRR292770.sam \
+        -p 2 \
+        >& SRR292770_end_to_end_stats.txt
+
+# SAM Sequence Alignment/Map format
+head -20 SRR292770.sam
+
+# View aligned reads on a genome viewer (optional)
+# If running IGV on thoth, load IGV module and start IGV
+# If running IGV locally, install IGV and follow instructions
